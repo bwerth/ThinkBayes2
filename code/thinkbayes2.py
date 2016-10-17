@@ -41,6 +41,8 @@ from scipy import stats
 from scipy import special
 from scipy import ndimage
 
+from scipy.special import gamma
+
 from io import open
 
 ROOT2 = math.sqrt(2)
@@ -498,6 +500,18 @@ class Pmf(_DictWrapper):
             t = [prob for (val, prob) in self.d.items() if val < x]
             return sum(t)
 
+    def ProbEqual(self, x):
+        """Probability that a sample from this Pmf is exactly x.
+
+        x: number
+
+        returns: float probability
+        """
+        if isinstance(x, _DictWrapper):
+            return PmfProbEqual(self, x)
+        else:
+            return self[x]
+
     # NOTE: I've decided to remove the magic comparators because they
     # have the side-effect of making Pmf sortable, but in fact they
     # don't support sorting.
@@ -945,7 +959,7 @@ def MakeMixture(metapmf, label='mix'):
     mix = Pmf(label=label)
     for pmf, p1 in metapmf.Items():
         for x, p2 in pmf.Items():
-            mix.Incr(x, p1 * p2)
+            mix[x] += p1 * p2
     return mix
 
 
@@ -1847,6 +1861,33 @@ def MakeBinomialPmf(n, p):
     pmf = Pmf()
     for k in range(n+1):
         pmf[k] = stats.binom.pmf(k, n, p)
+    return pmf
+
+
+def EvalGammaPdf(lam, a):
+    """Computes the Gamma PDF.
+
+    lam: where to evaluate the PDF
+    a: parameter of the gamma distribution
+
+    returns: float probability
+    """
+    return lam**(a-1) * math.exp(-lam) / gamma(a)
+
+
+def MakeGammaPmf(lams, a):
+    """Makes a PMF discrete approx to a Gamma distribution.
+
+    lam: parameter lambda in events per unit time
+    xs: upper bound of the Pmf
+
+    returns: normalized Pmf
+    """
+    pmf = Pmf()
+    for lam in lams:
+        pmf[lam] = EvalGammaPdf(lam, a)
+        
+    pmf.Normalize()
     return pmf
 
 
